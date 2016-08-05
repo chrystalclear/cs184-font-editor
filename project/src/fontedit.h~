@@ -1,0 +1,30 @@
+#ifndef CGL_FONTEDIT_H
+#define CGL_FONTEDIT_H
+//based off lenscamera
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <algorithm>
+
+#include "CGL/CGL.h"
+#include "CGL/renderer.h"
+#include "CGL/osdtext.h"
+
+#include "ft2build.h"
+#include FT_FREETYPE_H
+#include "freetype.h"
+#include "ftimage.h"
+//#include "freetype/*.h"
+
+namespace CGL {
+
+float bez_quad(float t, float b0, float b1, float b2);
+
+void draw_circle(float radius, float mouseX, float mouseY, float screenW, float screenH, int lineAmount);
+void draw_circle(float radius, float mouseX, float mouseY, float screenW, float screenH, int lineAmount = 20);
+
+} // namespace CGL
+
+#endif // CGL_FONTEDIT_H

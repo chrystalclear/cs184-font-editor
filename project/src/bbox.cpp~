@@ -1,0 +1,85 @@
+#include "bbox.h"
+
+#include "GL/glew.h"
+
+#include <algorithm>
+#include <iostream>
+
+namespace CGL {
+
+std::array<double,2> intervalIntersect (double& firstmin, double& firstmax, double& secondmin, double& secondmax){
+  //took intersection code example from here: http://stackoverflow.com/questions/20023482/c-finding-intersection-of-two-ranges
+  return {std::max(firstmin, secondmin), std::min(firstmax, secondmax) };
+
+}
+
+bool BBox::intersect(const Ray& r, double& t0, double& t1) const {
+
+  // TODO Part 2, task 2:
+  // Implement ray - bounding box intersection test
+  // If the ray intersected the bounding box within the range given by
+  // t0, t1, update t0 and t1 with the new intersection times.
+  Vector3D mins = min - r.o, maxs = max - r.o;
+  for (int i = 0; i<3; i++){
+    mins[i] /= r.d[i];
+    maxs[i] /= r.d[i];
+    if (maxs[i] < mins[i])
+    {
+      std::swap(mins[i], maxs[i]);
+    }
+  }
+  std::array<double,2> intersection = intervalIntersect(mins.x, maxs.x, mins.y, maxs.y);
+  if (intersection[1] <= intersection[0]) 
+    {return false;} 
+  intersection = intervalIntersect(intersection[0], intersection[1], mins.z, maxs.z);
+  if (intersection[1] <= intersection[0]) 
+    {return false;} 
+  intersection = intervalIntersect(intersection[0], intersection[1], r.min_t, r.max_t); //NOTE: mentioned in task 3, should I move it?
+  if (intersection[1] <= intersection[0]) 
+    {return false;} 
+  t0 = intersection[0];
+  t1 = intersection[1];  
+  return true;
+}
+
+void BBox::draw(Color c) const {
+
+  glColor4f(c.r, c.g, c.b, c.a);
+
+	// top
+	glBegin(GL_LINE_STRIP);
+	glVertex3d(max.x, max.y, max.z);
+  glVertex3d(max.x, max.y, min.z);
+  glVertex3d(min.x, max.y, min.z);
+  glVertex3d(min.x, max.y, max.z);
+  glVertex3d(max.x, max.y, max.z);
+	glEnd();
+
+	// bottom
+	glBegin(GL_LINE_STRIP);
+  glVertex3d(min.x, min.y, min.z);
+  glVertex3d(min.x, min.y, max.z);
+  glVertex3d(max.x, min.y, max.z);
+  glVertex3d(max.x, min.y, min.z);
+  glVertex3d(min.x, min.y, min.z);
+	glEnd();
+
+	// side
+	glBegin(GL_LINES);
+	glVertex3d(max.x, max.y, max.z);
+  glVertex3d(max.x, min.y, max.z);
+	glVertex3d(max.x, max.y, min.z);
+  glVertex3d(max.x, min.y, min.z);
+	glVertex3d(min.x, max.y, min.z);
+  glVertex3d(min.x, min.y, min.z);
+	glVertex3d(min.x, max.y, max.z);
+  glVertex3d(min.x, min.y, max.z);
+	glEnd();
+
+}
+
+std::ostream& operator<<(std::ostream& os, const BBox& b) {
+  return os << "BBOX(" << b.min << ", " << b.max << ")";
+}
+
+} // namespace CGL

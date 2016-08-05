@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }  
+  </style> 
+<title>Angelica Warstler  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">CS184 Final Project: Font Editor</h1>
+    <h2 align="middle">Angelica Warstler</h2>
+
+    <div class="padded">
+        <p>In this project, I used the Freetype library to load up font files and rasterized the Bezier curves inside. I also added functionality for editing the points loaded up from the font files.</p>
+
+    <h2 align="middle">Part 1: The Editor Window</h2>
+        <p>The actual base GUI is a stripped down version of the lenstester code from Project 4, with some extra features like file loading stolen from PathTracer's application.cpp from the same project. Freetype was already included in the cmake files for Lenstester and Pathtracer (even though it wasn't used), so all I had to do was make sure all the Freetype library files were accessible, strip down code in CMakeLists.txt to reduce the amount of work for each make call and rename some things for clarity. The only major point of trouble was that the fonts and openGL were all using different coordinate systems, and making them all match was a huge pain in the butt!</p>
+        
+    <h2 align="middle">Part 2: Loading up Fonts</h2>
+        <p>Freetype helpfully provided a glyph loading tutorial <a href="http://www.freetype.org/freetype2/docs/tutorial/step1.html">here</a> to help people take their first steps in implementing the freetype library into their projects. For my particular project, after initializing freetype, the code loads a font face from a file, sets a font size (which is not super relevant to the project in its current form), and loads the glyph data structure of the desired character. All of these actions are done with built-in functions and code essentially written out for me! However, they intentionally only put a function name for the aspect of the code that writes to the screen because they understood that every </p>
+        
+    <h2 align="middle">Part 3: Rasterization and Bezier Curves</h2>
+        <p><a href="http://www.freetype.org/freetype2/docs/glyphs/glyphs-6.html">This</a> page was incredibly useful for helping me to break down the data types within Freetype font glyphs to use the data properly render the curves necessary. Within each glyph, Freetype has tags for each point that tell whether the point is a curve/segment end point, a conic control point, or a cubic control point. Of note: Truetype fonts do not use cubic control points, which allowed for me to use a much simpler calculation listed here.</p>
+        <p>For each contour (aka every continuous segment), I went one-by-one to each point and added them to the space. I used a GL_LINE_STRIP displayed in red to render every point and contour of the glyph because GL_LINE_STRIPs don't require point redundances like GL_LINEs and do draw lines between points unlike GL_POINTs, which made any straight-line segments (such as two end points in a row) very easy. Separating the points in each strip per contour was especially important because there are characters like o or g that have a hole in the figure that cannot be outlined in a drawing without lifting the pen or adding an extraneous connecting line.</p>
+        <p>For any bezier control points I drew, I used the equation noted here (and on several other websites I looked up) as the formula for calculating the X and Y positions of each point on the curve between the two endpoints, using various equidistant values of t and taking a large number of samples to prevent the line segments between each sample from looking jagged. </p>
+        <p>One interesting case: Truetype files sometimes have multiple subsequent quadratic control points, and so as seen in the diagram below, one has to create a virtual end point for the two quadratic bezier curves at the midpoint between the control points. I simply did this by checking if the previous or next endpoint was actually a conic control point, and then for each case if it was so, I swapped out the "endpoint" for the calculations with the midpoint.
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="http://www.freetype.org/freetype2/docs/glyphs/points_conic2.png" width="360px" />
+                    <figcaption align="middle">Note that the virtual endpoint is not rendered later as an actual editable point in blue or yellow later; it is only there for calculations.</figcaption>
+                </tr>
+            </table>
+        </div>
+        <p>Another case I had to account for: As I was going through the points of the outline one by one in the data structure, I had to make sure that bezier curve and line segment rasterizing was not hindered if the points involved includd both the first and last line point of the data structure's portion for that contour; this was fixed for the bezier curve calculation by the previously mentioned hotswapping of endpoints, and for line segments there was an explicit check for this case. </p>
+        <p>After drawing the outlines of the image, I went back over all the points one more time and rendered them with GL_POINTs in various colors to differentiate them. Yellow points represent endpoints and blue points represent quadratic control points for the bezier curves. (Also as you will see in the next section, selected points are rendered in green.)</p>
+        <p>Let's take a look at a few images!</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/Arial_g.png" width="480px" />
+                    <figcaption align="middle">The character "g" in the Arial font! Note the second line drawn for the inner hole contour, as well as a few examples of consecutive blue quadratic control points.</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/Carima_K.png" width="480px" />
+                    <figcaption align="middle">The character "K" in the Carima font!</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/feferi.png" width="480px" />
+                    <figcaption align="middle">The character "P" in the Wingdings font, just for fun! (Note: This screencap was taken just before and used for the presentation; since then a bug has surfaced and caused the centermost points to overlap each other and not match this image.)</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h2 align="middle">Point Editing</h2>
+        <p>Using the old lenstester and pathtracer's application.cpp code, I edited the mouse_event code to do a couple things. There is a variable set for a selection mode that is turned off if the window is right clicked. If the mouse is left clicked in the window and there is a point selected in select mode, the point will be moved to the mouse location and the render function will update all curves and line segments accordingly. If select mode is not on, the program checks to see if there are any points within a certain radius of the mouse location and selects the closest point it can to the mouse location. You may have noted this earlier, but for the sake of this part of the code, I have a green circle drawn at a preset radius around the position of my mouse cursor at all times so that the viewer can see the clicking sensitivity radius. (Clicking on blank space or lines on the screen while not in select mode does nothing.)</p>
+        <p>Here are some illustrations below.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/pointedit1.png" width="480px" />
+                    <figcaption align="middle">Here I am about to select a bezier curve point. Note the selection circle in green.</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/pointedit2.png" width="480px" />
+                    <figcaption align="middle">With a left click, the point is now also rendered in green, showing that it has been selected and that we have entered select mode.</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/pointedit3.png" width="480px" />
+                    <figcaption align="middle">With a left click elsewhere on the screen, you can see the point has been moved.</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/pointedit4.png" width="480px" />
+                    <figcaption align="middle">And with a right click we leave select mode, and the point returns to its original color.</figcaption>
+                </tr>
+            </table>
+        </div>
+
+        
+</div>
+</body>
+</html>
+
+
+
+

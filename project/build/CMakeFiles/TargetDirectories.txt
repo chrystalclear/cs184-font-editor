@@ -1,0 +1,5 @@
+/home/angie/Documents/CS184/finalproject/build/CGL/src/CMakeFiles/CGL.dir
+/home/angie/Documents/CS184/finalproject/build/src/CMakeFiles/fonteditor.dir
+/home/angie/Documents/CS184/finalproject/build/CGL/deps/glew/CMakeFiles/glew.dir
+/home/angie/Documents/CS184/finalproject/build/CGL/deps/glfw/src/CMakeFiles/glfw.dir
+/home/angie/Documents/CS184/finalproject/build/CGL/deps/glfw/CMakeFiles/uninstall.dir

@@ -1,0 +1,179 @@
+#include "bsdf.h"
+
+#include <iostream>
+#include <algorithm>
+#include <utility>
+
+using std::min;
+using std::max;
+using std::swap;
+
+namespace CGL {
+
+void make_coord_space(Matrix3x3& o2w, const Vector3D& n) {
+
+    Vector3D z = Vector3D(n.x, n.y, n.z);
+    Vector3D h = z;
+    if (fabs(h.x) <= fabs(h.y) && fabs(h.x) <= fabs(h.z)) h.x = 1.0;
+    else if (fabs(h.y) <= fabs(h.x) && fabs(h.y) <= fabs(h.z)) h.y = 1.0;
+    else h.z = 1.0;
+
+    z.normalize();
+    Vector3D y = cross(h, z);
+    y.normalize();
+    Vector3D x = cross(z, y);
+    x.normalize();
+
+    o2w[0] = x;
+    o2w[1] = y;
+    o2w[2] = z;
+}
+
+// Diffuse BSDF //
+
+Spectrum DiffuseBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return albedo * (1.0 / PI);
+}
+
+Spectrum DiffuseBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+  *wi = sampler.get_sample(pdf);
+  return albedo * (1.0 / PI);
+}
+
+// Mirror BSDF //
+
+Spectrum MirrorBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return Spectrum();
+}
+
+Spectrum MirrorBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+
+  // TODO Part 5:
+  // Implement MirrorBSDF
+  *pdf = 1.f;
+  reflect(wo, wi);
+  //std::cout << *wi << " " << wo << "\n";
+  return reflectance/abs_cos_theta(*wi);
+}
+
+// Glossy BSDF //
+
+/*
+Spectrum GlossyBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return Spectrum();
+}
+
+Spectrum GlossyBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+  *pdf = 1.0f;
+  return reflect(wo, wi, reflectance);
+}
+*/
+
+// Refraction BSDF //
+
+Spectrum RefractionBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return Spectrum();
+}
+
+Spectrum RefractionBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+
+  // TODO Part 5:
+  // Implement RefractionBSDF
+  //reflectance/cos(theta) aka wo.z
+  return Spectrum();
+}
+
+// Glass BSDF //
+
+Spectrum GlassBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return Spectrum();
+}
+
+Spectrum GlassBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+
+  // TODO Part 5:
+  // Compute Fresnel coefficient and either reflect or refract based on it.
+  
+  float no = 1.f, ni = ior;
+  if (wo.z < 0)
+    {std::swap(no, ni);}
+  
+  if (!refract(wo,wi,ior)){//total internal reflection
+    *pdf = 1;
+    reflect(wo, wi);
+    return reflectance/abs_cos_theta(*wi);
+  }
+  else{
+    //compute reflection coefficient R in Schlick's approximation
+    double R = (no-ni)*(no-ni)/(no+ni)/(no+ni);
+    double temp = 1-abs_cos_theta(-wo);
+    std::cout << "temp is: " << temp << "\n";
+    temp = temp*temp*temp*temp*temp; //temp^5
+    std::cout << "temp is: " << temp << "\n";
+    std::cout << "R is: " << R << "\n";
+    R = clamp(R + (1-R)*temp, 0, 1);
+    std::cout << R << "\n";
+    if (coin_flip(R)){ //decide reflection or refraction
+      *pdf = R;
+      reflect(wo,wi);
+      return R*reflectance/abs_cos_theta(*wi);
+    }
+    else{
+      *pdf = 1-R;
+      refract(wo,wi,ior);
+      
+      return (1-R)*transmittance*(no/ni)*(no/ni)/abs_cos_theta(*wi);
+    }
+  }
+}
+
+void BSDF::reflect(const Vector3D& wo, Vector3D* wi) {
+
+  // TODO Part 5:
+  // Implement reflection of wo about normal (0,0,1) and store result in wi.
+  Vector3D n = Vector3D(0.,0.,1.);
+  *wi = 2*dot(wo, n)*n - wo;
+
+}
+
+bool BSDF::refract(const Vector3D& wo, Vector3D* wi, float ior) {
+
+  // TODO Part 5:
+  // Use Snell's Law to refract wo surface and store result ray in wi.
+  // Return false if refraction does not occur due to total internal reflection
+  // and true otherwise. When dot(wo,n) is positive, then wo corresponds to a
+  // ray entering the surface through vacuum.
+  float no = 1.f, ni = ior;
+  Vector3D surfacenormal = Vector3D(0,0,1); //either 0,0,1 or 0,0,-1
+  //std::cout<<wo.z << "\n";
+  if (wo.z < 0){
+    surfacenormal.z = -1;
+    //std::cout<<surfacenormal + Vector3D(1,1,1) << "\n";
+    std::swap(no, ni);
+  }
+  if (ni*sin_theta(wo) < no){
+    double r = no/ni;
+    Vector3D l = -wo;
+    double c = dot(-surfacenormal, l);
+    Vector3D temp = r*l + surfacenormal*(r*c - sqrt(1-(r*r)*(1-c*c)));
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}
+
+// Emission BSDF //
+
+Spectrum EmissionBSDF::f(const Vector3D& wo, const Vector3D& wi) {
+  return Spectrum();
+}
+
+Spectrum EmissionBSDF::sample_f(const Vector3D& wo, Vector3D* wi, float* pdf) {
+  *pdf = 1.0 / PI;
+  *wi  = sampler.get_sample(pdf);
+  return Spectrum();
+}
+
+} // namespace CGL
